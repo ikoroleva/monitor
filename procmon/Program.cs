@@ -1,47 +1,70 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿//todo: several instances
+//todo: logging information to file
+
+
 using System.Diagnostics;
 
 namespace procmon
 {
     class Program
     {
+        static void Help(string[] args)
+        {
+
+            System.Console.WriteLine("\nprocmon [processName, lifetime, frequency]:\n processName - (obligatory, string) name of the proccess \n lifetime - (obligatory, int) maximum process lifetime in minutes \n frequency - (obligatory, int) monitoring frequency for this process\n");
+
+        }
         static void Main(string[] args)
 
         {
-            if (args.Length < 3)
+            //validate input arguments, show help message if input is incorrect
+            //todo: parse arguments lifetime and frequency as a double and then round them when counting lifetime and interval 
+            if (args.Length < 3 ||
+                args[0] == "--h" ||
+                args[0] == "--help" ||
+                !int.TryParse(args[1], out int maxLifeTime) ||
+                !int.TryParse(args[2], out int monFrequency)
+                )
             {
-                System.Console.WriteLine("Invalid input. Please, enter proccess name, its maximum lifetime (in minutes) and a monitoring frequency (in minutes).");
-                return;
-            }
-
-            if (!double.TryParse(args[1], out double maxLifeTime))
-            {
-                System.Console.WriteLine("Invalid input. Please, enter the proccess maximum lifetime in minutes as a second argument");
-                return;
-            }
-
-            if (!double.TryParse(args[2], out double monFrequency))
-            {
-                System.Console.WriteLine("Invalid input. Please, enter monitoring frequency in minutes as a third argument");
+                Help(args);
                 return;
             }
 
 
-            Process[] procs = Process.GetProcessesByName(args[0]);
-            foreach (var proc in procs)
-            {
-                var lifetime = DateTime.Now - proc.StartTime;
-                System.Console.WriteLine($"{proc.ProcessName} #{proc.Id} - {lifetime.TotalMinutes}");
+            Console.WriteLine($"Monitor for proccess '{args[0]}' is starting.\n It would check for '{args[0]}' every {monFrequency} minutes. \nAfter {maxLifeTime} minutes of lifetime all '{args[0]}' processed will be killed. \nPress ESC to stop");
 
-                if (lifetime.TotalMinutes > maxLifeTime)
+
+            //proccess is running until key ESC woudln't pressed
+            while (!(Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape))
+            {
+                int intInterval = monFrequency * 60000; //set interval in minutes
+                Process[] procs = Process.GetProcessesByName(args[0]); //find proccess by name
+
+                //if there are no proccesses with this name log it in console
+                if (procs.Length == 0)
                 {
-                    proc.Kill();
+                    Console.WriteLine($"{DateTime.Now} - Can't find processes named '{args[0]}'");
                 }
+                //if monitor find any proccesses log their info in console
+                else if (procs.Length > 0)
+                {
+                    foreach (var proc in procs)
+                    {
+                        var lifetime = DateTime.Now - proc.StartTime;
 
+                        System.Console.WriteLine($"{DateTime.Now} - {proc.ProcessName} #{proc.Id} - {lifetime.TotalMinutes}");
+
+                        if (lifetime.TotalMinutes > maxLifeTime) //kill the process if it takes too much time
+                        {
+                            proc.Kill();
+                            Console.WriteLine($"{DateTime.Now} - Proccess '{proc.ProcessName}' #{proc.Id} was killed.");
+                        }
+                    }
+                }
+                Thread.Sleep(intInterval);
             }
 
+            System.Console.WriteLine($"Monitor for proccess '{args[0]}' was stopped...");
         }
-
-
     }
 }
